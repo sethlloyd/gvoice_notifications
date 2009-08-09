@@ -2,7 +2,6 @@
 
 from googlevoice import Voice
 import xmpp
-import urllib
 from BeautifulSoup import BeautifulSoup
 import time
 import getpass
@@ -44,7 +43,6 @@ else:
     client.auth(im_username,im_passwd, 'botty')
     client.sendInitPresence()
 
-# Set
 
 first = True
 sms_count = {}
@@ -52,12 +50,9 @@ sms_count = {}
 # repeat the following loop until the program is killed
 while True:
     # first find out how many unread messages there are
-#    allmsg= voice.inbox()['unreadCounts']
-#    new_sms = voice.inbox()['unreadCounts']['sms']
 
     allsms = voice.sms()
     new_sms = allsms['unreadCounts']['sms']
-#    print allsms
     smss = allsms['messages']
     found = 0
 
@@ -68,6 +63,12 @@ while True:
     # voice only reports one unread message (i.e. just that there are new messages in that thread)
     # thus for each thread you have, this keeps track of how many messages there were at
     # the previous iteration and notifies you of all new messages since
+    if first:
+        sms_parse = BeautifulSoup(voice.sms_html())
+    else:
+        if new_sms>0:
+            sms_parse = BeautifulSoup(voice.sms_html())
+            
     
     for itms in reversed(smss.keys()):
 
@@ -78,15 +79,13 @@ while True:
         if found == new_sms:
             break
 
-      #  print found
-      #  print new_sms
         smsID=smss[itms]['id']
-        sms_parse=BeautifulSoup(voice.sms_html())
 
 
         # BeautifulSoup very nicely parses the html tags to pull out the actual text messages
-        sms_content = sms_parse.find(id=smsID).findAll(attrs={"class":"gc-message-sms-text"})
-        sms_from = sms_parse.find(id=smsID).findAll(attrs={"class":"gc-message-sms-from"})
+        sms_content=sms_parse.find(id=smsID).findAll(attrs={"class":"gc-message-sms-text"})
+        sms_from=sms_parse.find(id=smsID).findAll(attrs={"class":"gc-message-sms-from"})
+
         # here's the actual number of texts you've received from the specific user
         clen=len(sms_content)
 
@@ -108,19 +107,17 @@ while True:
 
         # build up the notification message containing all new sms messages
         if smss[itms]['isRead']== False:
-    #        print sms_parse.find(id=smsID)
-            print smss[itms]
-            found=found+1
-       #     print found
+
             if unread_sms > 0:
+
                 if EMAIL_NOTI:
-                    email['Subject'] = "New sms from " + sms_from[0].string
+                    email['Subject'] = "SMS from " + sms_from[clen-1].string[4:-4]
                     email['Text']=""
-                    for txt in sms_content[clen-unread_sms:clen]:
-        #                print txt.PreviousSibling.string
-                         #   continue
-                        email['Text'] = email['Text'] + txt.string + '\r\n'
-                        
+
+                    for i in range(clen-unread_sms,clen):
+                        if ("Me:" in sms_from[i].string) == False:
+                            email['Text'] = email['Text'] + sms_content[i].string + '\r\n'
+
                     server = smtplib.SMTP(email['Server'], 587)
                     server.ehlo()
                     server.starttls()
@@ -131,15 +128,17 @@ while True:
 
 
                 else:
-                    im="New sms from " + smss[itms]['displayNumber'] + ': '                
-                    for txt in sms_content[clen-unread_sms:clen]:
-                        im=im + txt.string + '\r\n'
+                    im="SMS from " + sms_from[clen-1].string[4:-2]                
+
+                    for i in range(clen-unread_sms,clen):
+                        if ("Me:" in sms_from[i].string) == False:
+                            im=im + sms_content[i].string + '\r\n'
 
                     message= xmpp.Message(im_sendto,im)
                     message.setAttr('type','chat')
                     client.send(message)
 
-            
+            found=found+1
 
     first= False
 

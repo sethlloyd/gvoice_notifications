@@ -108,7 +108,7 @@ while True:
         # build up the notification message containing all new sms messages
         if smss[itms]['isRead']== False:
 
-            if unread_sms > 0:
+            if (unread_sms > 0) and (first == False):
 
                 if EMAIL_NOTI:
                     email['Subject'] = "SMS from " + sms_from[clen-1].string[4:-4]
